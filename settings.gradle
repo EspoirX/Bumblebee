@@ -1,0 +1,3 @@
+rootProject.name = "Bumblebee"
+include(":app")
+include(":library")
