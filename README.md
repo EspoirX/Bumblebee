@@ -62,10 +62,10 @@ object SocketManager {
 
 ### 3. 连接，断开链接，发送，接收
 Bumblebee 有四个注解，分别是：  
-@ConnectionService   //主动打开 socket 链接  
-@ConnectionShutdown  //主动断开 socket 链接
-@Send                //发送消息
-@Receive             //接收消息
+**@ConnectionService**   //主动打开 socket 链接  
+**@ConnectionShutdown**  //主动断开 socket 链接
+**@Send**                //发送消息  
+**@Receive**             //接收消息
 
 使用也简单，在服务接口中添加对应的方法即可
 ```kotlin
@@ -89,8 +89,7 @@ interface SocketService {
     //......
 }
 ```
-- 被 @ConnectionService 修饰的方法，不能有参数，需要有返回值 Boolean，调用即可主动打开 Socket 链接，前提
-是当前链接是关闭状态，不然不会重复打开。使用例子：
+- 被 @ConnectionService 修饰的方法，不能有参数，需要有返回值 Boolean，调用即可主动打开 Socket 链接，前提是当前链接是关闭状态，不然不会重复打开。使用例子：
 ```kotlin
    socketService?.connectionService()
 ```
@@ -101,7 +100,10 @@ interface SocketService {
 ```
 
 - 被 @Send 修饰的方法，需要有参数，String 类型，需要有返回值 Boolean，调用即可主动给 Socket 服务端发送一条消息。
-通常传一个 json 字符串。使用也是一样，不写了。
+通常传一个 json 字符串。使用也是一样：
+```kotlin
+    socketService?.sendMessage("{...}")
+```
 
 - 被 @Receive 修饰的方法，代表接收一个消息，不能有参数，需要返回 Flow 类型，下面细说。
 
@@ -119,9 +121,9 @@ sealed class Message {
 当我们需要常规接收服务端推送过来的消息时，Flow 类型需要为 Message（如上例子的代码所示）。那么接收时可以根据自己需要看是
 过滤 Text 类型还是 Bytes 类型。（通常都是 Text）
 ```kotlin
-     fun observeText() = socketService?.observeText()
-            ?.filter { it is Message.Text }
-            ?.map { (it as Message.Text).value }
+    fun observeText() = socketService?.observeText()
+        ?.filter { it is Message.Text }
+        ?.map { (it as Message.Text).value }
     //......
     SocketManager.observeText()?.map { message ->
        //... 
@@ -150,6 +152,7 @@ sealed class MachineState {
     fun observeState() = socketService?.observeState()
     //......
     var isConnectOpen : Boolean = false
+
     SocketManager.observeState()?.map {
         isConnectOpen = it is MachineState.Connected
     }?.catch { it.printStackTrace() }?.launchIn(mainScope)
@@ -171,6 +174,7 @@ interface BackoffStrategy {
 }
 ```
 返回毫秒。  
+
 默认的重试逻辑是 1 秒重试一次，6 次后休息 10 秒再重复：
 ```kotlin
 class LinearBackoffStrategy(private val durationMillis: Long) : BackoffStrategy {
