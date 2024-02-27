@@ -63,7 +63,7 @@ object SocketManager {
 ### 3. 连接，断开链接，发送，接收
 Bumblebee 有四个注解，分别是：  
 **@ConnectionService**   //主动打开 socket 链接  
-**@ConnectionShutdown**  //主动断开 socket 链接
+**@ConnectionShutdown**  //主动断开 socket 链接  
 **@Send**                //发送消息  
 **@Receive**             //接收消息
 
