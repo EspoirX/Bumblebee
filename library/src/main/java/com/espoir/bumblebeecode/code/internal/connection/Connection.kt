@@ -2,8 +2,9 @@ package com.espoir.bumblebeecode.code.internal.connection
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.espoir.bumblebeecode.Bumblebee.Companion.TAG
-import com.espoir.bumblebeecode.BumblebeeLog
+import com.espoir.bumblebeecode.Bumblebee.Companion.log
 import com.espoir.bumblebeecode.code.Message
 import com.espoir.bumblebeecode.code.ShutdownReason
 import com.espoir.bumblebeecode.code.StateMachine
@@ -21,13 +22,12 @@ import kotlinx.coroutines.launch
 class Connection(private val stateManager: StateManager) {
 
     class Factory(
-        private val log: BumblebeeLog,
         private val webSocketFactory: WebSocket.Factory,
         private val backoffStrategy: BackoffStrategy,
     ) {
 
         fun create(scope: CoroutineScope): Connection {
-            val stateManager = StateManager(scope, webSocketFactory, backoffStrategy, log)
+            val stateManager = StateManager(scope, webSocketFactory, backoffStrategy)
             return Connection(stateManager)
         }
     }
@@ -61,7 +61,6 @@ class Connection(private val stateManager: StateManager) {
         private val scope: CoroutineScope,
         private val webSocketFactory: WebSocket.Factory,
         private val backoffStrategy: BackoffStrategy,
-        private val log: BumblebeeLog,
     ) {
 
         private val eventProcessor: MutableSharedFlow<MachineEvent> by lazy {
@@ -103,6 +102,7 @@ class Connection(private val stateManager: StateManager) {
                         scheduleRetry(backoffDuration)
                         transitionTo(
                             MachineState.WaitingToRetry(
+                                session,
                                 retryCount = retryCount,
                                 retryInMillis = backoffDuration
                             )
@@ -120,6 +120,7 @@ class Connection(private val stateManager: StateManager) {
                         scheduleRetry(backoffDuration)
                         transitionTo(
                             MachineState.WaitingToRetry(
+                                session,
                                 retryCount = 0,
                                 retryInMillis = backoffDuration
                             )
@@ -135,6 +136,7 @@ class Connection(private val stateManager: StateManager) {
                         scheduleRetry(backoffDuration)
                         transitionTo(
                             MachineState.WaitingToRetry(
+                                session,
                                 retryCount = 0,
                                 retryInMillis = backoffDuration
                             )
@@ -151,6 +153,7 @@ class Connection(private val stateManager: StateManager) {
                         scheduleRetry(backoffDuration)
                         transitionTo(
                             MachineState.WaitingToRetry(
+                                session,
                                 retryCount = 0,
                                 retryInMillis = backoffDuration
                             )
@@ -173,12 +176,14 @@ class Connection(private val stateManager: StateManager) {
             state<MachineState.WaitingToRetry> {
                 //重试，重新构建websocket
                 on<MachineEvent.OnRetry> {
-                    log.log(TAG, "Socket状态： 重连中")
+                    session.webSocket.cancel()
+                    log.log(TAG, "Socket状态： 重连中 先取消当前 socket")
                     val webSocketSession = openWebSocket()
                     transitionTo(MachineState.Connecting(session = webSocketSession, retryCount = retryCount + 1))
                 }
                 on<MachineEvent.OnConnectionEvent.TerminateConnection> {
-                    log.log(TAG, "Socket状态： 重连中 -> 主动关闭，取消重连")
+                    session.webSocket.cancel()
+                    log.log(TAG, "Socket状态： 重连中 -> 主动关闭，取消重连，取消 socket")
                     cancelRetry()
                     transitionTo(MachineState.Disconnected)
                 }
@@ -215,13 +220,16 @@ class Connection(private val stateManager: StateManager) {
         private val handler = Handler(Looper.getMainLooper())
 
         private fun scheduleRetry(duration: Long) {
+            Log.i("CosSocketManager", "scheduleRetry duration=$duration")
             isRetrying = true
             handler.removeCallbacksAndMessages(null)
             handler.postDelayed({
+                Log.i("CosSocketManager", "handleEvent MachineEvent.OnRetry")
                 handleEvent(MachineEvent.OnRetry)
                 isRetrying = false
             }, duration)
         }
+
 
         private fun MachineState.WaitingToRetry.cancelRetry() = handler.removeCallbacksAndMessages(null)
 

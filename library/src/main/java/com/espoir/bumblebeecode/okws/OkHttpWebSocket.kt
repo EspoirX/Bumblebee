@@ -23,7 +23,6 @@ class OkHttpWebSocket(
                 establisher.establishConnection(eventObserver)
             }
             .map {
-               // KLog.i("CosSocket", "socket event = $it")
                 handleWebSocketEvent(it)
                 return@map it
             }.catch { it.printStackTrace() }

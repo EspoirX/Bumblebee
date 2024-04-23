@@ -1,5 +1,7 @@
 package com.espoir.bumblebeecode.okws
 
+import com.espoir.bumblebeecode.Bumblebee
+import com.espoir.bumblebeecode.Bumblebee.Companion.TAG
 import okhttp3.Request
 import okhttp3.WebSocket
 import okio.ByteString
@@ -10,6 +12,7 @@ class OkWebSocketHolder : WebSocket {
 
     fun initiate(webSocket: WebSocket) {
         this.webSocket = webSocket
+        Bumblebee.log.log(TAG, "webSocket = $webSocket")
     }
 
     fun shutdown() {

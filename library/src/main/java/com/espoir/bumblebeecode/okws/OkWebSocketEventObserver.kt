@@ -1,5 +1,7 @@
 package com.espoir.bumblebeecode.okws
 
+import com.espoir.bumblebeecode.Bumblebee.Companion.TAG
+import com.espoir.bumblebeecode.Bumblebee.Companion.log
 import com.espoir.bumblebeecode.code.Message
 import com.espoir.bumblebeecode.code.ShutdownReason
 import com.espoir.bumblebeecode.code.WebSocket
@@ -25,6 +27,7 @@ class OkWebSocketEventObserver(private val scope: CoroutineScope) : WebSocketLis
     }
 
     override fun onOpen(webSocket: okhttp3.WebSocket, response: Response) {
+        log.log(TAG, "OKHttp WebSocket onOpen webSocket = $webSocket")
         scope.launch { processor.emit(WebSocket.Event.OnConnectionOpened(webSocket)) }
     }
 
@@ -38,14 +41,17 @@ class OkWebSocketEventObserver(private val scope: CoroutineScope) : WebSocketLis
     }
 
     override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+        log.log(TAG, "OKHttp  WebSocket onClosing reason=$reason")
         scope.launch { processor.emit(WebSocket.Event.OnConnectionClosing(ShutdownReason(code, reason))) }
     }
 
     override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+        log.log(TAG, "OKHttp  WebSocket onClosed reason=$reason")
         scope.launch { processor.emit(WebSocket.Event.OnConnectionClosed(ShutdownReason(code, reason))) }
     }
 
     override fun onFailure(webSocket: okhttp3.WebSocket, t: Throwable, response: Response?) {
+        log.log(TAG, "OKHttp  WebSocket onFailure t = " + t.message)
         scope.launch { processor.emit(WebSocket.Event.OnConnectionFailed(t)) }
     }
 }

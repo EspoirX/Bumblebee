@@ -9,6 +9,7 @@ sealed class MachineState {
      * 重试状态
      */
     data class WaitingToRetry internal constructor(
+        internal val session: Session,
         val retryCount: Int,
         val retryInMillis: Long,
     ) : MachineState()
