@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface WebSocket {
 
-    fun open(): Flow<Event>
+    fun open(callback: ((Event) -> Unit)? = null)
     fun send(message: Message): Boolean
     fun close(shutdownReason: ShutdownReason): Boolean
     fun cancel()

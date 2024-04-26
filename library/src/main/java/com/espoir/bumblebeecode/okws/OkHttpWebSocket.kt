@@ -4,10 +4,6 @@ import com.espoir.bumblebeecode.code.Message
 import com.espoir.bumblebeecode.code.ShutdownReason
 import com.espoir.bumblebeecode.code.WebSocket
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import okhttp3.WebSocketListener
 import okio.ByteString.Companion.toByteString
 
@@ -17,15 +13,17 @@ class OkHttpWebSocket(
     private val establisher: ConnectionEstablisher,
 ) : WebSocket {
 
-    override fun open(): Flow<WebSocket.Event> {
-        return eventObserver.observe()
-            .onStart {
-                establisher.establishConnection(eventObserver)
-            }
-            .map {
-                handleWebSocketEvent(it)
-                return@map it
-            }.catch { it.printStackTrace() }
+    private var isConnection = false
+
+    override fun open(callback: ((WebSocket.Event) -> Unit)?) {
+        if (!isConnection) {
+            isConnection = true
+            establisher.establishConnection(eventObserver)
+        }
+        eventObserver.callback = {
+            handleWebSocketEvent(it)
+            callback?.invoke(it)
+        }
     }
 
     @Synchronized
@@ -40,12 +38,14 @@ class OkHttpWebSocket(
 
     @Synchronized
     override fun close(shutdownReason: ShutdownReason): Boolean {
+        isConnection = false
         val (code, reasonText) = shutdownReason
         return socketHolder.close(code, reasonText)
     }
 
     @Synchronized
     override fun cancel() {
+        isConnection = false
         socketHolder.cancel()
     }
 
@@ -68,6 +68,7 @@ class OkHttpWebSocket(
 
     @Synchronized
     private fun handleConnectionShutdown() {
+        isConnection = false
         socketHolder.shutdown()
         eventObserver.terminate()
     }
@@ -80,7 +81,7 @@ class OkHttpWebSocket(
         private val establisher: ConnectionEstablisher,
     ) : WebSocket.Factory {
         override fun create(scope: CoroutineScope): WebSocket {
-            return OkHttpWebSocket(OkWebSocketHolder(), OkWebSocketEventObserver(scope), establisher)
+            return OkHttpWebSocket(OkWebSocketHolder(), OkWebSocketEventObserver(), establisher)
         }
     }
 }

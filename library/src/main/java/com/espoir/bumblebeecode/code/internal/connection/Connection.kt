@@ -14,9 +14,6 @@ import com.espoir.bumblebeecode.code.retry.BackoffStrategy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class Connection(private val stateManager: StateManager) {
@@ -192,12 +189,15 @@ class Connection(private val stateManager: StateManager) {
             initialState(MachineState.Disconnected)
             onTransition { transition ->
                 if (transition is StateMachine.Transition.Valid && transition.fromState != transition.toState) {
-                    scope.launch { eventProcessor.emit(MachineEvent.OnStateChange(state)) }
+                    scope.launch {
+                        log.log(TAG, "Socket状态改变通知 state = $state")
+                        eventProcessor.emit(MachineEvent.OnStateChange(state))
+                    }
                 }
             }
         }
 
-        fun observeMachineEvent(): Flow<MachineEvent> = eventProcessor.buffer()
+        fun observeMachineEvent(): Flow<MachineEvent> = eventProcessor
 
         /**
          * 改变状态
@@ -209,9 +209,18 @@ class Connection(private val stateManager: StateManager) {
 
         private fun openWebSocket(): Session {
             val webSocket = webSocketFactory.create(scope)
-            webSocket.open().map {
-                handleEvent(MachineEvent.OnWebSocket.Event(it))
-            }.launchIn(scope)
+            webSocket.open {
+                runCatching {
+                    if (it !is WebSocket.Event.OnMessageReceived) {
+                        log.log(TAG, "webSocket.open() Event = $it")
+                    }
+                    handleEvent(MachineEvent.OnWebSocket.Event(it))
+                }.onFailure {
+                    it.printStackTrace()
+                    log.log(TAG, "OkHttpWebSocket catch = " + it.message)
+                    handleEvent(MachineEvent.OnWebSocket.Event(WebSocket.Event.OnConnectionFailed(it)))
+                }
+            }
             return Session(webSocket)
         }
 

@@ -5,53 +5,45 @@ import com.espoir.bumblebeecode.Bumblebee.Companion.log
 import com.espoir.bumblebeecode.code.Message
 import com.espoir.bumblebeecode.code.ShutdownReason
 import com.espoir.bumblebeecode.code.WebSocket
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.launch
 import okhttp3.Response
 import okhttp3.WebSocketListener
 import okio.ByteString
 
-class OkWebSocketEventObserver(private val scope: CoroutineScope) : WebSocketListener() {
+class OkWebSocketEventObserver : WebSocketListener() {
 
-    private val processor: MutableSharedFlow<WebSocket.Event> by lazy {
-        MutableSharedFlow()
-    }
-
-    fun observe(): Flow<WebSocket.Event> = processor.buffer()
+    var callback: ((WebSocket.Event) -> Unit)? = null
 
     fun terminate() {
-        scope.launch { processor.emit(WebSocket.Event.OnTerminate) }
+        log.log(TAG, "--Event OnTerminate--")
+        callback?.invoke(WebSocket.Event.OnTerminate)
     }
 
     override fun onOpen(webSocket: okhttp3.WebSocket, response: Response) {
         log.log(TAG, "OKHttp WebSocket onOpen webSocket = $webSocket")
-        scope.launch { processor.emit(WebSocket.Event.OnConnectionOpened(webSocket)) }
+        callback?.invoke(WebSocket.Event.OnConnectionOpened(webSocket))
     }
 
     override fun onMessage(webSocket: okhttp3.WebSocket, bytes: ByteString) {
-        scope.launch { processor.emit(WebSocket.Event.OnMessageReceived(Message.Bytes(bytes.toByteArray()))) }
+        callback?.invoke(WebSocket.Event.OnMessageReceived(Message.Bytes(bytes.toByteArray())))
     }
 
     override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
         if (text == "ping") return
-        scope.launch { processor.emit(WebSocket.Event.OnMessageReceived(Message.Text(text))) }
+        callback?.invoke(WebSocket.Event.OnMessageReceived(Message.Text(text)))
     }
 
     override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
         log.log(TAG, "OKHttp  WebSocket onClosing reason=$reason")
-        scope.launch { processor.emit(WebSocket.Event.OnConnectionClosing(ShutdownReason(code, reason))) }
+        callback?.invoke(WebSocket.Event.OnConnectionClosing(ShutdownReason(code, reason)))
     }
 
     override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
         log.log(TAG, "OKHttp  WebSocket onClosed reason=$reason")
-        scope.launch { processor.emit(WebSocket.Event.OnConnectionClosed(ShutdownReason(code, reason))) }
+        callback?.invoke(WebSocket.Event.OnConnectionClosed(ShutdownReason(code, reason)))
     }
 
     override fun onFailure(webSocket: okhttp3.WebSocket, t: Throwable, response: Response?) {
         log.log(TAG, "OKHttp  WebSocket onFailure t = " + t.message)
-        scope.launch { processor.emit(WebSocket.Event.OnConnectionFailed(t)) }
+        callback?.invoke(WebSocket.Event.OnConnectionFailed(t))
     }
 }
