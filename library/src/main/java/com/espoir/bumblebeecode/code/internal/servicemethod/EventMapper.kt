@@ -1,16 +1,13 @@
 package com.espoir.bumblebeecode.code.internal.servicemethod
 
-import com.espoir.bumblebeecode.code.internal.connection.MachineState
+import com.espoir.bumblebeecode.Bumblebee.Companion.TAG
+import com.espoir.bumblebeecode.Bumblebee.Companion.log
 import com.espoir.bumblebeecode.code.Message
 import com.espoir.bumblebeecode.code.WebSocket
 import com.espoir.bumblebeecode.code.internal.connection.MachineEvent
+import com.espoir.bumblebeecode.code.internal.connection.MachineState
 import com.espoir.bumblebeecode.code.utils.getParameterUpperBound
 import com.espoir.bumblebeecode.code.utils.getRawType
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 
@@ -19,20 +16,20 @@ import java.lang.reflect.Type
  */
 sealed class EventMapper<T : Any> {
 
-    abstract fun mapToData(event: MachineEvent): Flow<T>
+    abstract fun mapToData(event: MachineEvent): T?
 
 
     object NoOp : EventMapper<Any>() {
-        override fun mapToData(event: MachineEvent): Flow<Any> = flow { emit(event) }
+        override fun mapToData(event: MachineEvent): Any = event
     }
 
     class FilterEventType<E : MachineEvent>(private val clazz: Class<E>) : EventMapper<E>() {
-        override fun mapToData(event: MachineEvent): Flow<E> {
+        override fun mapToData(event: MachineEvent): E? {
             if (clazz == Message::class.java || clazz.isInstance(event)) {
                 @Suppress("UNCHECKED_CAST")
-                return flow { emit(event as E) }
+                return event as E
             } else {
-                return emptyFlow()
+                return null
             }
         }
     }
@@ -40,15 +37,18 @@ sealed class EventMapper<T : Any> {
     object ToWebSocketEvent : EventMapper<WebSocket.Event>() {
         private val filterEventType = FilterEventType(MachineEvent.OnWebSocket.Event::class.java)
 
-        override fun mapToData(event: MachineEvent): Flow<WebSocket.Event> =
-            filterEventType.mapToData(event).map { it.event }
+        override fun mapToData(event: MachineEvent): WebSocket.Event? =
+            filterEventType.mapToData(event)?.event
     }
 
     object ToMachineState : EventMapper<MachineState>() {
         private val filterEventType = FilterEventType(MachineEvent.OnStateChange::class.java)
 
-        override fun mapToData(event: MachineEvent): Flow<MachineState> {
-            return filterEventType.mapToData(event).map { it.state }
+        override fun mapToData(event: MachineEvent): MachineState? {
+            return filterEventType.mapToData(event)?.let {
+                log.log(TAG, "Socket状态改变通知 mapToData = ${it.state}")
+                it.state
+            }
         }
     }
 
@@ -56,14 +56,12 @@ sealed class EventMapper<T : Any> {
 
         private val toWebSocketEvent = ToWebSocketEvent
 
-        override fun mapToData(event: MachineEvent): Flow<Message> {
-            return toWebSocketEvent.mapToData(event).filter {
-                it is WebSocket.Event.OnMessageReceived
-            }.map {
-                return@map it as WebSocket.Event.OnMessageReceived
-            }.map {
-                return@map it.message
+        override fun mapToData(event: MachineEvent): Message {
+            val event = toWebSocketEvent.mapToData(event)
+            if (event is WebSocket.Event.OnMessageReceived) {
+                return event.message
             }
+            return Message.NoOp
         }
     }
 

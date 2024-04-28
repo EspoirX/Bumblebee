@@ -34,6 +34,7 @@ class OkHttpWebSocket(
             val byteString = bytes.toByteString(0, bytes.size)
             socketHolder.send(byteString)
         }
+        Message.NoOp -> false
     }
 
     @Synchronized

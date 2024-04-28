@@ -5,4 +5,5 @@ sealed class Message {
     class Bytes(val value: ByteArray) : Message() {
         operator fun component1(): ByteArray = value
     }
+    object NoOp : Message()
 }

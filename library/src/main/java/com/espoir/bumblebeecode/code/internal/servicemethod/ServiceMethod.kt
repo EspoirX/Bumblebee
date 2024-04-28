@@ -2,7 +2,10 @@ package com.espoir.bumblebeecode.code.internal.servicemethod
 
 import com.espoir.bumblebeecode.code.Message
 import com.espoir.bumblebeecode.code.internal.connection.Connection
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.map
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 
@@ -66,9 +69,9 @@ sealed class ServiceMethod {
 
         fun execute(): Any {
             return connection.observeEvent()
-                .flatMapConcat {
-                    eventMapper.mapToData(it)
-                }
+                .map {
+                    return@map eventMapper.mapToData(it)
+                }.filter { it != null }.buffer()
         }
 
         class Factory(
