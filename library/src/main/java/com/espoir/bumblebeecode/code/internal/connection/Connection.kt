@@ -96,14 +96,20 @@ class Connection(private val stateManager: StateManager) {
                     } else {
                         log.log(TAG, "Socket状态： 正在链接 -> 链接失败，转重连")
                         val backoffDuration = backoffStrategy.backoffDurationMillisAt(retryCount)
-                        scheduleRetry(backoffDuration)
-                        transitionTo(
-                            MachineState.WaitingToRetry(
-                                session,
-                                retryCount = retryCount,
-                                retryInMillis = backoffDuration
+                        if (backoffDuration == -1L) {
+                            log.log(TAG, "Socket状态： 重连取消，转断开")
+                            session.webSocket.close(ShutdownReason.ACTIVELY)
+                            transitionTo(MachineState.Disconnecting)
+                        } else {
+                            scheduleRetry(backoffDuration)
+                            transitionTo(
+                                MachineState.WaitingToRetry(
+                                    session,
+                                    retryCount = retryCount,
+                                    retryInMillis = backoffDuration
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -114,14 +120,20 @@ class Connection(private val stateManager: StateManager) {
                     } else {
                         log.log(TAG, "Socket状态： 链接成功 -> 正在关闭，转重连")
                         val backoffDuration = backoffStrategy.backoffDurationMillisAt(0)
-                        scheduleRetry(backoffDuration)
-                        transitionTo(
-                            MachineState.WaitingToRetry(
-                                session,
-                                retryCount = 0,
-                                retryInMillis = backoffDuration
+                        if (backoffDuration == -1L) {
+                            log.log(TAG, "Socket状态： 重连取消，转断开")
+                            session.webSocket.close(ShutdownReason.ACTIVELY)
+                            transitionTo(MachineState.Disconnecting)
+                        } else {
+                            scheduleRetry(backoffDuration)
+                            transitionTo(
+                                MachineState.WaitingToRetry(
+                                    session,
+                                    retryCount = 0,
+                                    retryInMillis = backoffDuration
+                                )
                             )
-                        )
+                        }
                     }
                 }
                 on(webSocketClosed()) {
@@ -130,14 +142,20 @@ class Connection(private val stateManager: StateManager) {
                     } else {
                         log.log(TAG, "Socket状态： 链接成功 -> 已经关闭，转重连")
                         val backoffDuration = backoffStrategy.backoffDurationMillisAt(0)
-                        scheduleRetry(backoffDuration)
-                        transitionTo(
-                            MachineState.WaitingToRetry(
-                                session,
-                                retryCount = 0,
-                                retryInMillis = backoffDuration
+                        if (backoffDuration == -1L) {
+                            log.log(TAG, "Socket状态： 重连取消，转断开")
+                            session.webSocket.close(ShutdownReason.ACTIVELY)
+                            transitionTo(MachineState.Disconnecting)
+                        } else {
+                            scheduleRetry(backoffDuration)
+                            transitionTo(
+                                MachineState.WaitingToRetry(
+                                    session,
+                                    retryCount = 0,
+                                    retryInMillis = backoffDuration
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
@@ -147,14 +165,20 @@ class Connection(private val stateManager: StateManager) {
                     } else {
                         log.log(TAG, "Socket状态： 链接成功 -> 链接终止，转重连")
                         val backoffDuration = backoffStrategy.backoffDurationMillisAt(0)
-                        scheduleRetry(backoffDuration)
-                        transitionTo(
-                            MachineState.WaitingToRetry(
-                                session,
-                                retryCount = 0,
-                                retryInMillis = backoffDuration
+                        if (backoffDuration == -1L) {
+                            log.log(TAG, "Socket状态： 重连取消，转断开")
+                            session.webSocket.close(ShutdownReason.ACTIVELY)
+                            transitionTo(MachineState.Disconnecting)
+                        } else {
+                            scheduleRetry(backoffDuration)
+                            transitionTo(
+                                MachineState.WaitingToRetry(
+                                    session,
+                                    retryCount = 0,
+                                    retryInMillis = backoffDuration
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
