@@ -77,13 +77,17 @@ class Connection(private val stateManager: StateManager) {
                 }
                 //状态为 StartedConnection 时，打开 socket 链接，转为 Connecting
                 on(MachineEvent.OnConnectionEvent.StartedConnection) {
-                    val webSocketSession = openWebSocket()
+                    val webSocketSession = createWebSocket()
                     log.log(TAG, "Socket状态： 打开链接 -> 正在链接")
                     transitionTo(MachineState.Connecting(session = webSocketSession, retryCount = 0))
                 }
             }
             //socket正在链接
             state<MachineState.Connecting> {
+                onEnter {
+                    //链接中的时候才真正打开 socket，避免 socket 回调回来的时候，状态机状态还没改变的时序问题
+                    openWebSocket(session.webSocket)
+                }
                 //已经链接成功，转到 Connected
                 on(webSocketOpen()) {
                     log.log(TAG, "Socket状态： 正在链接 -> 链接成功")
@@ -199,7 +203,7 @@ class Connection(private val stateManager: StateManager) {
                 on<MachineEvent.OnRetry> {
                     session.webSocket.cancel()
                     log.log(TAG, "Socket状态： 重连中 先取消当前 socket")
-                    val webSocketSession = openWebSocket()
+                    val webSocketSession = createWebSocket()
                     transitionTo(MachineState.Connecting(session = webSocketSession, retryCount = retryCount + 1))
                 }
                 on<MachineEvent.OnConnectionEvent.TerminateConnection> {
@@ -227,16 +231,19 @@ class Connection(private val stateManager: StateManager) {
          * 改变状态
          */
         fun handleEvent(event: MachineEvent) {
-            scope.launch { eventProcessor.emit(event) }
             stateMachine.transition(event)
+            scope.launch { eventProcessor.emit(event) }
         }
 
-        private fun openWebSocket(): Session {
+        private fun createWebSocket(): Session {
             val webSocket = webSocketFactory.create(scope)
+            return Session(webSocket)
+        }
+
+        private fun openWebSocket(webSocket: WebSocket) {
             webSocket.open {
                 runCatching {
                     if (it !is WebSocket.Event.OnMessageReceived) {
-                        log.log(TAG, "webSocket.open() Event = $it")
                     }
                     handleEvent(MachineEvent.OnWebSocket.Event(it))
                 }.onFailure {
@@ -245,7 +252,6 @@ class Connection(private val stateManager: StateManager) {
                     handleEvent(MachineEvent.OnWebSocket.Event(WebSocket.Event.OnConnectionFailed(it)))
                 }
             }
-            return Session(webSocket)
         }
 
         @Volatile
