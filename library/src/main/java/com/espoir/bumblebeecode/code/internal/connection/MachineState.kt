@@ -30,12 +30,7 @@ sealed class MachineState {
     ) : MachineState()
 
     /**
-     * 断开中状态
-     */
-    object Disconnecting : MachineState()
-
-    /**
      * 已断开状态
      */
-    object Disconnected : MachineState()
+    data class Disconnected(internal val openConnect: Boolean = true) : MachineState()
 }

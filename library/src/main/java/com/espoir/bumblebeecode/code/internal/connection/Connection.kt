@@ -71,9 +71,13 @@ class Connection(private val stateManager: StateManager) {
             //一开始是没链接
             state<MachineState.Disconnected> {
                 onEnter {
-                    //状态转为 StartedConnection
-                    log.log(TAG, "Socket状态： 已断开 -> 打开链接")
-                    handleEvent(MachineEvent.OnConnectionEvent.StartedConnection)
+                    if (openConnect) {
+                        //状态转为 StartedConnection
+                        log.log(TAG, "Socket状态： 已断开 -> 打开链接")
+                        handleEvent(MachineEvent.OnConnectionEvent.StartedConnection)
+                    } else {
+                        log.log(TAG, "Socket状态： 已断开")
+                    }
                 }
                 //状态为 StartedConnection 时，打开 socket 链接，转为 Connecting
                 on(MachineEvent.OnConnectionEvent.StartedConnection) {
@@ -103,7 +107,7 @@ class Connection(private val stateManager: StateManager) {
                         if (backoffDuration == -1L) {
                             log.log(TAG, "Socket状态： 重连取消，转断开")
                             session.webSocket.close(ShutdownReason.ACTIVELY)
-                            transitionTo(MachineState.Disconnecting)
+                            transitionTo(MachineState.Disconnected(false))
                         } else {
                             scheduleRetry(backoffDuration)
                             transitionTo(
@@ -127,7 +131,7 @@ class Connection(private val stateManager: StateManager) {
                         if (backoffDuration == -1L) {
                             log.log(TAG, "Socket状态： 重连取消，转断开")
                             session.webSocket.close(ShutdownReason.ACTIVELY)
-                            transitionTo(MachineState.Disconnecting)
+                            transitionTo(MachineState.Disconnected(false))
                         } else {
                             scheduleRetry(backoffDuration)
                             transitionTo(
@@ -149,7 +153,7 @@ class Connection(private val stateManager: StateManager) {
                         if (backoffDuration == -1L) {
                             log.log(TAG, "Socket状态： 重连取消，转断开")
                             session.webSocket.close(ShutdownReason.ACTIVELY)
-                            transitionTo(MachineState.Disconnecting)
+                            transitionTo(MachineState.Disconnected(false))
                         } else {
                             scheduleRetry(backoffDuration)
                             transitionTo(
@@ -172,7 +176,7 @@ class Connection(private val stateManager: StateManager) {
                         if (backoffDuration == -1L) {
                             log.log(TAG, "Socket状态： 重连取消，转断开")
                             session.webSocket.close(ShutdownReason.ACTIVELY)
-                            transitionTo(MachineState.Disconnecting)
+                            transitionTo(MachineState.Disconnected(false))
                         } else {
                             scheduleRetry(backoffDuration)
                             transitionTo(
@@ -189,13 +193,7 @@ class Connection(private val stateManager: StateManager) {
                 on<MachineEvent.OnConnectionEvent.TerminateConnection> {
                     log.log(TAG, "Socket状态： 链接成功 -> 主动关闭，断开中")
                     session.webSocket.close(ShutdownReason.ACTIVELY)
-                    transitionTo(MachineState.Disconnecting)
-                }
-            }
-            state<MachineState.Disconnecting> {
-                onEnter {
-                    log.log(TAG, "Socket状态： 断开中 -> 已经断开")
-                    transitionTo(MachineState.Disconnected)
+                    transitionTo(MachineState.Disconnected(false))
                 }
             }
             state<MachineState.WaitingToRetry> {
@@ -210,11 +208,11 @@ class Connection(private val stateManager: StateManager) {
                     session.webSocket.cancel()
                     log.log(TAG, "Socket状态： 重连中 -> 主动关闭，取消重连，取消 socket")
                     cancelRetry()
-                    transitionTo(MachineState.Disconnected)
+                    transitionTo(MachineState.Disconnected(false))
                 }
             }
 
-            initialState(MachineState.Disconnected)
+            initialState(MachineState.Disconnected())
             onTransition { transition ->
                 if (transition is StateMachine.Transition.Valid && transition.fromState != transition.toState) {
                     scope.launch {
@@ -243,8 +241,6 @@ class Connection(private val stateManager: StateManager) {
         private fun openWebSocket(webSocket: WebSocket) {
             webSocket.open {
                 runCatching {
-                    if (it !is WebSocket.Event.OnMessageReceived) {
-                    }
                     handleEvent(MachineEvent.OnWebSocket.Event(it))
                 }.onFailure {
                     it.printStackTrace()
