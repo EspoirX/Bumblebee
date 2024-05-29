@@ -2,7 +2,6 @@ package com.espoir.bumblebeecode.code.internal.connection
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.espoir.bumblebeecode.Bumblebee.Companion.TAG
 import com.espoir.bumblebeecode.Bumblebee.Companion.log
 import com.espoir.bumblebeecode.code.Message
@@ -256,18 +255,16 @@ class Connection(private val stateManager: StateManager) {
         private val handler = Handler(Looper.getMainLooper())
 
         private fun scheduleRetry(duration: Long) {
-            Log.i("CosSocketManager", "scheduleRetry duration=$duration")
             isRetrying = true
             handler.removeCallbacksAndMessages(null)
             handler.postDelayed({
-                Log.i("CosSocketManager", "handleEvent MachineEvent.OnRetry")
                 handleEvent(MachineEvent.OnRetry)
                 isRetrying = false
             }, duration)
         }
 
 
-        private fun MachineState.WaitingToRetry.cancelRetry() = handler.removeCallbacksAndMessages(null)
+        private fun cancelRetry() = handler.removeCallbacksAndMessages(null)
 
         private fun webSocketOpen() = any<MachineEvent, MachineEvent.OnWebSocket.Event<*>>()
             .where { event is WebSocket.Event.OnConnectionOpened<*> }
