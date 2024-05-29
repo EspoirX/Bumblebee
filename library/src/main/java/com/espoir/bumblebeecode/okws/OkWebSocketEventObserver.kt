@@ -14,12 +14,11 @@ class OkWebSocketEventObserver : WebSocketListener() {
     var callback: ((WebSocket.Event) -> Unit)? = null
 
     fun terminate() {
-        log.log(TAG, "--Event OnTerminate--")
         callback?.invoke(WebSocket.Event.OnTerminate)
     }
 
     override fun onOpen(webSocket: okhttp3.WebSocket, response: Response) {
-        log.log(TAG, "OKHttp WebSocket onOpen webSocket = $webSocket")
+        log.log(TAG, "Socket打开成功 webSocket = $webSocket")
         callback?.invoke(WebSocket.Event.OnConnectionOpened(webSocket))
     }
 
@@ -33,17 +32,18 @@ class OkWebSocketEventObserver : WebSocketListener() {
     }
 
     override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
-        log.log(TAG, "OKHttp  WebSocket onClosing reason=$reason")
+        log.log(TAG, "Socket正在关闭 reason=$reason")
         callback?.invoke(WebSocket.Event.OnConnectionClosing(ShutdownReason(code, reason)))
     }
 
     override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
-        log.log(TAG, "OKHttp  WebSocket onClosed reason=$reason")
+        log.log(TAG, "Socket链接关闭 reason=$reason")
         callback?.invoke(WebSocket.Event.OnConnectionClosed(ShutdownReason(code, reason)))
     }
 
     override fun onFailure(webSocket: okhttp3.WebSocket, t: Throwable, response: Response?) {
-        log.log(TAG, "OKHttp  WebSocket onFailure t = " + t.message)
+        log.log(TAG, "Socket链接失败 onFailure = " + t.message + "webSocket=" + webSocket)
+        log.log(TAG, "---------------------------------------------------------")
         callback?.invoke(WebSocket.Event.OnConnectionFailed(t))
     }
 }

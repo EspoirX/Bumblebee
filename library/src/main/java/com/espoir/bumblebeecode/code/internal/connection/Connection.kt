@@ -12,6 +12,7 @@ import com.espoir.bumblebeecode.code.StateMachine.Matcher.Companion.any
 import com.espoir.bumblebeecode.code.WebSocket
 import com.espoir.bumblebeecode.code.retry.BackoffStrategy
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -102,7 +103,7 @@ class Connection(private val stateManager: StateManager) {
                     if (isRetrying) {
                         dontTransition()
                     } else {
-                        log.log(TAG, "Socket状态： 正在链接 -> 链接失败，转重连")
+                        log.log(TAG, "Socket状态： 正在链接 -> 链接失败，转重连，次数=$retryCount")
                         val backoffDuration = backoffStrategy.backoffDurationMillisAt(retryCount)
                         if (backoffDuration == -1L) {
                             log.log(TAG, "Socket状态： 重连取消，转断开")
@@ -215,8 +216,8 @@ class Connection(private val stateManager: StateManager) {
             initialState(MachineState.Disconnected())
             onTransition { transition ->
                 if (transition is StateMachine.Transition.Valid && transition.fromState != transition.toState) {
-                    scope.launch {
-                        log.log(TAG, "Socket状态改变通知 state = $state")
+                    scope.launch(Dispatchers.Main) {
+                        log.log(TAG, "Socket状态变更 state = $state")
                         eventProcessor.emit(MachineEvent.OnStateChange(state))
                     }
                 }

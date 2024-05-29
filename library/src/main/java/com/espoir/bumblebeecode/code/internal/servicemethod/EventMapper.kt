@@ -46,7 +46,6 @@ sealed class EventMapper<T : Any> {
 
         override fun mapToData(event: MachineEvent): MachineState? {
             return filterEventType.mapToData(event)?.let {
-                log.log(TAG, "Socket状态改变通知 mapToData = ${it.state}")
                 it.state
             }
         }

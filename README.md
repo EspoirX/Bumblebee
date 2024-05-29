@@ -177,7 +177,7 @@ interface BackoffStrategy {
 
 **返回 -1 代表取消重连，转断开**
 
-默认的重试逻辑是 1 秒重试一次，6 次后休息 10 秒再重复：
+默认的重试逻辑是 5 秒重试一次，6 次后休息 10 秒再重复：
 ```kotlin
 class LinearBackoffStrategy(private val durationMillis: Long) : BackoffStrategy {
     override fun backoffDurationMillisAt(retryCount: Int): Long {

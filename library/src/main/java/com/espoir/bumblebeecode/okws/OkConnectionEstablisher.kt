@@ -14,6 +14,6 @@ class OkConnectionEstablisher(
     override fun establishConnection(webSocketListener: WebSocketListener) {
         val request = requestFactory.createRequest()
         val ws = okHttpClient.newWebSocket(request, webSocketListener)
-        Bumblebee.log.log(TAG, "OkHttpClient newWebSocket = $ws")
+        Bumblebee.log.log(TAG, "Socket状态： 创建新的 Socket = $ws")
     }
 }

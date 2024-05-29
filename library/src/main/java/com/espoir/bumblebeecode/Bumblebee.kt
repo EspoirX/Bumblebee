@@ -86,7 +86,7 @@ class Bumblebee internal constructor(private val serviceFactory: Service.Factory
         }
 
         private companion object {
-            private const val RETRY_BASE_DURATION = 2000L
+            private const val RETRY_BASE_DURATION = 5000L
             private val DEFAULT_RETRY_STRATEGY = LinearBackoffStrategy(RETRY_BASE_DURATION)
         }
     }
