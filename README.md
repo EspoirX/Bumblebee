@@ -48,7 +48,7 @@ object SocketManager {
                 }
             }).build()
 
-        socketService = socket.create(mainScope)
+        socketService = socket.create()
     }
 }
 ```
@@ -56,7 +56,7 @@ object SocketManager {
 
 可以配置 BumblebeeLog 接口，自己实现 Log 打印，不配置的话默认使用 android.util.Log 打印。
 
-然后通过 create 方法即可创建实例，要传入参数 CoroutineScope。
+然后通过 create 方法即可创建实例。
 
 **在创建实例成功后，会自动打开连接。**
 

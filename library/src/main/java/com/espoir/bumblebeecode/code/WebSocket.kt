@@ -20,6 +20,6 @@ interface WebSocket {
     }
 
     interface Factory {
-        fun create(scope: CoroutineScope): WebSocket
+        fun create(): WebSocket
     }
 }

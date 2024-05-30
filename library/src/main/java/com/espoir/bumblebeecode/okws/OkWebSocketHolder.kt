@@ -12,10 +12,10 @@ class OkWebSocketHolder : WebSocket {
 
     fun initiate(webSocket: WebSocket) {
         this.webSocket = webSocket
-        Bumblebee.log.log(TAG, "webSocket = $webSocket")
     }
 
     fun shutdown() {
+        webSocket?.cancel()
         webSocket = null
     }
 

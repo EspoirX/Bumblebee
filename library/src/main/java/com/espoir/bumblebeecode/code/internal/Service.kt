@@ -2,7 +2,6 @@ package com.espoir.bumblebeecode.code.internal
 
 import com.espoir.bumblebeecode.code.internal.connection.Connection
 import com.espoir.bumblebeecode.code.internal.servicemethod.ServiceMethodExecutor
-import kotlinx.coroutines.CoroutineScope
 import java.lang.reflect.Method
 
 class Service(
@@ -18,9 +17,9 @@ class Service(
         private val serviceMethodExecutorFactory: ServiceMethodExecutor.Factory,
     ) {
 
-        fun create(scope: CoroutineScope, serviceInterface: Class<*>): Service {
+        fun create(serviceInterface: Class<*>): Service {
             validateService(serviceInterface)
-            val connection = connectionFactory.create(scope)
+            val connection = connectionFactory.create()
             val serviceMethodExecutor = serviceMethodExecutorFactory.create(serviceInterface, connection)
             return Service(connection, serviceMethodExecutor)
         }

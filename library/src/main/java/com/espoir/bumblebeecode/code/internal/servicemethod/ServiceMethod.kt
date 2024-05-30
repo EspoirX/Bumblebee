@@ -68,7 +68,7 @@ sealed class ServiceMethod {
     ) : ServiceMethod() {
 
         fun execute(): Any {
-            return connection.observeEvent()
+            return connection.observeEvent(eventMapper.toString())
                 .map {
                     return@map eventMapper.mapToData(it)
                 }.filter { it != null }.buffer()

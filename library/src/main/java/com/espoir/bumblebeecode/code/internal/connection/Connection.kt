@@ -10,11 +10,9 @@ import com.espoir.bumblebeecode.code.StateMachine
 import com.espoir.bumblebeecode.code.StateMachine.Matcher.Companion.any
 import com.espoir.bumblebeecode.code.WebSocket
 import com.espoir.bumblebeecode.code.retry.BackoffStrategy
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.callbackFlow
 
 class Connection(private val stateManager: StateManager) {
 
@@ -23,8 +21,8 @@ class Connection(private val stateManager: StateManager) {
         private val backoffStrategy: BackoffStrategy,
     ) {
 
-        fun create(scope: CoroutineScope): Connection {
-            val stateManager = StateManager(scope, webSocketFactory, backoffStrategy)
+        fun create(): Connection {
+            val stateManager = StateManager(webSocketFactory, backoffStrategy)
             return Connection(stateManager)
         }
     }
@@ -40,7 +38,7 @@ class Connection(private val stateManager: StateManager) {
         stateManager.handleEvent(MachineEvent.OnConnectionEvent.TerminateConnection)
     }
 
-    fun observeEvent(): Flow<MachineEvent> = stateManager.observeMachineEvent()
+    fun observeEvent(tag: String): Flow<MachineEvent> = stateManager.observeMachineEvent(tag)
 
     fun send(message: Message): Boolean {
         return when (val state = stateManager.state) {
@@ -55,14 +53,9 @@ class Connection(private val stateManager: StateManager) {
      * 状态管理，基于有限状态机
      */
     class StateManager(
-        private val scope: CoroutineScope,
         private val webSocketFactory: WebSocket.Factory,
         private val backoffStrategy: BackoffStrategy,
     ) {
-
-        private val eventProcessor: MutableSharedFlow<MachineEvent> by lazy {
-            MutableSharedFlow()
-        }
 
         val state: MachineState
             get() = stateMachine.state
@@ -215,26 +208,45 @@ class Connection(private val stateManager: StateManager) {
             initialState(MachineState.Disconnected())
             onTransition { transition ->
                 if (transition is StateMachine.Transition.Valid && transition.fromState != transition.toState) {
-                    scope.launch(Dispatchers.Main) {
-                        log.log(TAG, "Socket状态变更 state = $state")
-                        eventProcessor.emit(MachineEvent.OnStateChange(state))
-                    }
+                    log.log(TAG, "Socket状态变更 state = $state")
+                    eventProcessor(MachineEvent.OnStateChange(state))
                 }
             }
         }
 
-        fun observeMachineEvent(): Flow<MachineEvent> = eventProcessor
+        private var eventProcessorMap = hashMapOf<String, EventProcessor>()
+
+        private fun addEventProcessor(tag: String, eventProcessor: EventProcessor) {
+            eventProcessorMap[tag] = eventProcessor
+        }
+
+        private fun eventProcessor(event: MachineEvent) {
+            eventProcessorMap.forEach { it.value.onEvent(event) }
+        }
+
+        fun observeMachineEvent(tag: String): Flow<MachineEvent> = callbackFlow {
+            addEventProcessor(tag, object : EventProcessor {
+                override fun onEvent(event: MachineEvent) {
+                    trySend(event).isSuccess
+                }
+            })
+            awaitClose()
+        }
+
+        interface EventProcessor {
+            fun onEvent(event: MachineEvent)
+        }
 
         /**
          * 改变状态
          */
         fun handleEvent(event: MachineEvent) {
             stateMachine.transition(event)
-            scope.launch { eventProcessor.emit(event) }
+            eventProcessor(event)
         }
 
         private fun createWebSocket(): Session {
-            val webSocket = webSocketFactory.create(scope)
+            val webSocket = webSocketFactory.create()
             return Session(webSocket)
         }
 

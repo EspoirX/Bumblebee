@@ -9,7 +9,6 @@ import com.espoir.bumblebeecode.code.internal.servicemethod.ServiceMethod
 import com.espoir.bumblebeecode.code.internal.servicemethod.ServiceMethodExecutor
 import com.espoir.bumblebeecode.code.retry.BackoffStrategy
 import com.espoir.bumblebeecode.code.retry.LinearBackoffStrategy
-import kotlinx.coroutines.CoroutineScope
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 
@@ -24,12 +23,12 @@ class Bumblebee internal constructor(private val serviceFactory: Service.Factory
         }
     }
 
-    fun <T> create(scope: CoroutineScope, service: Class<T>): T? = implementService(scope, service)
+    fun <T> create(service: Class<T>): T? = implementService(service)
 
-    inline fun <reified T : Any> create(scope: CoroutineScope): T? = create(scope, T::class.java)
+    inline fun <reified T : Any> create(): T? = create(T::class.java)
 
-    private fun <T> implementService(scope: CoroutineScope, serviceInterface: Class<T>): T? {
-        val serviceInstance = serviceFactory.create(scope, serviceInterface)
+    private fun <T> implementService(serviceInterface: Class<T>): T? {
+        val serviceInstance = serviceFactory.create(serviceInterface)
         serviceInstance.startForever()
         val proxy = Proxy.newProxyInstance(
             serviceInterface.classLoader,
@@ -67,7 +66,7 @@ class Bumblebee internal constructor(private val serviceFactory: Service.Factory
         )
 
         private fun createConnectionFactory(): Connection.Factory =
-            Connection.Factory( checkNotNull(webSocketFactory), backoffStrategy)
+            Connection.Factory(checkNotNull(webSocketFactory), backoffStrategy)
 
         private fun createServiceMethodExecutorFactory(): ServiceMethodExecutor.Factory {
             val connectionMethodFactory = ServiceMethod.ConnectionService.Factory()

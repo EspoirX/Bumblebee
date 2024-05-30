@@ -18,7 +18,8 @@ class OkHttpWebSocket(
     override fun open(callback: ((WebSocket.Event) -> Unit)?) {
         if (!isConnection) {
             isConnection = true
-            establisher.establishConnection(eventObserver)
+            val ws = establisher.establishConnection(eventObserver)
+            socketHolder.initiate(ws)
         }
         eventObserver.callback = {
             handleWebSocketEvent(it)
@@ -34,6 +35,7 @@ class OkHttpWebSocket(
             val byteString = bytes.toByteString(0, bytes.size)
             socketHolder.send(byteString)
         }
+
         Message.NoOp -> false
     }
 
@@ -52,10 +54,6 @@ class OkHttpWebSocket(
 
     private fun handleWebSocketEvent(event: WebSocket.Event) {
         when (event) {
-            is WebSocket.Event.OnConnectionOpened<*> -> {
-                socketHolder.initiate(event.webSocket as okhttp3.WebSocket)
-            }
-
             is WebSocket.Event.OnConnectionClosing -> close(ShutdownReason.DEFAULT)
             is WebSocket.Event.OnConnectionClosed,
             is WebSocket.Event.OnConnectionFailed,
@@ -75,13 +73,13 @@ class OkHttpWebSocket(
     }
 
     interface ConnectionEstablisher {
-        fun establishConnection(webSocketListener: WebSocketListener)
+        fun establishConnection(webSocketListener: WebSocketListener): okhttp3.WebSocket
     }
 
     class Factory(
         private val establisher: ConnectionEstablisher,
     ) : WebSocket.Factory {
-        override fun create(scope: CoroutineScope): WebSocket {
+        override fun create(): WebSocket {
             return OkHttpWebSocket(OkWebSocketHolder(), OkWebSocketEventObserver(), establisher)
         }
     }
